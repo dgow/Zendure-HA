@@ -448,7 +448,12 @@ class ZendureManager(DataUpdateCoordinator[None], EntityDevice):
                     # device: pwr_produced can exceed homeOutput (internal trickle charge, sensor
                     # skew), and subtracting more than was added fabricates a phantom negative
                     # setpoint — the root cause of #1151.
-                    if d.state == DeviceState.SOCFULL and d.exports_bypass:
+                    # SOCFULL production is non-dispatchable regardless of export settings: it
+                    # always passes through to home or grid. Must be subtracted from setpoint
+                    # so the system doesn't try to source grid power to meet a goal that solar
+                    # already covers — fixes bug where export-disabled + SOCFULL uses grid despite
+                    # available solar.
+                    if d.state == DeviceState.SOCFULL:
                         self.discharge_bypass += min(-d.pwr_produced, home)
                     self.discharge_limit += d.fuseGrp.discharge_limit(d)
                     self.discharge_optimal += d.discharge_optimal
