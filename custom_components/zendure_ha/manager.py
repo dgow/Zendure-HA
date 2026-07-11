@@ -616,14 +616,17 @@ class ZendureManager(DataUpdateCoordinator[None], EntityDevice):
             else:
                 pwr = 0
             # SOCFULL devices should only pass through solar, not drain battery
-            if pwr < -d.pwr_produced and d.state == DeviceState.SOCFULL:
-                pwr = -d.pwr_produced
+            if d.state == DeviceState.SOCFULL:
+                pwr = min(pwr, -d.pwr_produced)
             self.discharge_weight -= device_weight
 
             # adjust the limit, make sure we have 'enough' power to discharge
             limit -= -d.pwr_produced if solaronly else d.pwr_max
             if limit < setpoint - pwr:
                 pwr = max(setpoint - limit, 0 if d.state != DeviceState.SOCFULL else -d.pwr_produced)
+            # Re-apply SOCFULL limit after adjustment to prevent exceeding solar production
+            if d.state == DeviceState.SOCFULL:
+                pwr = min(pwr, -d.pwr_produced)
             pwr = min(pwr, setpoint, d.pwr_max)
 
             # make sure we have devices in optimal working range
