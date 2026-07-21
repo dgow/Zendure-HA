@@ -49,3 +49,6 @@ keep-runtime-typing = true
 
 [lint.mccabe]
 max-complexity = 25
+
+[lint.per-file-ignores]
+"simulator/*" = ["T201", "D103", "D107", "DTZ001", "PLR0915", "TRY003", "EM102"]
