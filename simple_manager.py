@@ -6,9 +6,10 @@ Reads the P1 meter value (grid import/export) from the command line and sets
 the device output power to cover your home demand.
 
 Usage:
-  ./simple_manager.py --p1 <watts>
-  ./simple_manager.py --p1 450     # Grid importing 450W → device covers it
-  ./simple_manager.py --p1 0       # Grid balanced → stop discharging
+  ./simple_manager.py --p1 <watts>    # Manual P1 value
+  ./simple_manager.py --p1 450        # Grid importing 450W → device covers it
+  ./simple_manager.py --p1 0          # Grid balanced → stop discharging
+  ./simple_manager.py --shelly        # Read Shelly + outputHomePower, set output to match
 
 Reference:
   outputLimit : RW  W      0-800     Output/discharge power limit (1x)
@@ -28,6 +29,7 @@ import requests
 
 IP = "192.168.77.111"
 SN = "EOD1NLN9P125626"
+SHELLY_IP = "192.168.55.10"
 
 
 def read_device() -> dict:
@@ -40,12 +42,24 @@ def write_properties(props: dict) -> None:
     requests.post(f"http://{IP}/properties/write", json=payload, timeout=5)
 
 
-def main():
-    if len(sys.argv) != 3 or sys.argv[1] != "--p1":
-        print(f"Usage: {sys.argv[0]} --p1 <watts>")
-        sys.exit(1)
+def get_p1_shelly() -> int:
+    r = requests.get(f"http://{SHELLY_IP}/rpc/EM.GetStatus?id=0", timeout=5)
+    return int(r.json()["total_act_power"])
 
-    p1 = int(sys.argv[2])
+
+def main():
+    if len(sys.argv) == 2 and sys.argv[1] == "--shelly":
+        shelly_p1 = get_p1_shelly()
+        device = read_device()
+        home_out = device.get("properties", {}).get("outputHomePower", 0)
+        p1 = shelly_p1 + home_out
+        print(f"Shelly: {shelly_p1:+d}W  outputHomePower: {home_out:+d}W  → P1: {p1:+d}W")
+    elif len(sys.argv) == 3 and sys.argv[1] == "--p1":
+        p1 = int(sys.argv[2])
+    else:
+        print(f"Usage: {sys.argv[0]} --p1 <watts>")
+        print(f"       {sys.argv[0]} --shelly")
+        sys.exit(1)
 
     before = read_device()
     p = before.get("properties", {})
