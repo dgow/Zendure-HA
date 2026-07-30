@@ -47,15 +47,20 @@ def get_p1_shelly() -> int:
     return int(r.json()["total_act_power"])
 
 
+def show(level, solar, home, out, label=""):
+    print(f"  {label}Bat {level:3d}%  Solar {solar:4d}W  Home {home:4d}W  Limit {out:4d}W")
+
+
 def main():
     if len(sys.argv) == 2 and sys.argv[1] == "--shelly":
         shelly_p1 = get_p1_shelly()
         device = read_device()
         home_out = device.get("properties", {}).get("outputHomePower", 0)
         p1 = shelly_p1 + home_out
-        print(f"Shelly: {shelly_p1:+d}W  outputHomePower: {home_out:+d}W  → P1: {p1:+d}W")
+        print(f"\n>> Grid (Shelly): {shelly_p1:+d}W  |  Device output: {home_out:+d}W  =  Demand: {p1:+d}W\n")
     elif len(sys.argv) == 3 and sys.argv[1] == "--p1":
         p1 = int(sys.argv[2])
+        print(f"\n>> Manual P1: {p1:+d}W\n")
     else:
         print(f"Usage: {sys.argv[0]} --p1 <watts>")
         print(f"       {sys.argv[0]} --shelly")
@@ -63,22 +68,19 @@ def main():
 
     before = read_device()
     p = before.get("properties", {})
-    print(f"Before  — battery: {p.get('electricLevel', '?')}%  "
-          f"solar: {p.get('solarInputPower', '?')}W  "
-          f"home: {p.get('outputHomePower', '?')}W  "
-          f"outputLimit: {p.get('outputLimit', '?')}W  "
-          f"socSet: {p.get('socSet', '?')}")
+    show(p.get("electricLevel", 0), p.get("solarInputPower", 0), p.get("outputHomePower", 0), p.get("outputLimit", 0), ">> ")
+
+    p1 = min(p1, 850)
 
     if p1 > 0:
-        limit = min(p1, 800)
         write_properties({
             "smartMode": 1,
             "acMode": 2,
-            "outputLimit": limit,
+            "outputLimit": p1,
             "inputLimit": 0,
-            "socSet": 1000,
+            "socSet": 940,
         })
-        print(f"P1={p1}W → outputLimit={limit}W, socSet=400 (discharging)")
+        print(f"\n>> Discharge: outputLimit = {p1}W\n")
     else:
         write_properties({
             "smartMode": 1,
@@ -87,16 +89,12 @@ def main():
             "inputLimit": 0,
             "socSet": 400,
         })
-        print(f"P1={p1}W → outputLimit=0, socSet=400 (stopped, solar bypass)")
+        print("\n>> Stopped: outputLimit = 0\n")
 
     time.sleep(3)
     after = read_device()
     p2 = after.get("properties", {})
-    print(f"After   — battery: {p2.get('electricLevel', '?')}%  "
-          f"solar: {p2.get('solarInputPower', '?')}W  "
-          f"home: {p2.get('outputHomePower', '?')}W  "
-          f"outputLimit: {p2.get('outputLimit', '?')}W  "
-          f"socSet: {p2.get('socSet', '?')}")
+    show(p2.get("electricLevel", 0), p2.get("solarInputPower", 0), p2.get("outputHomePower", 0), p2.get("outputLimit", 0), "")
 
 
 if __name__ == "__main__":
