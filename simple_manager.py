@@ -76,7 +76,7 @@ def main():
             "acMode": 2,
             "outputLimit": limit,
             "inputLimit": 0,
-            "socSet": 400,
+            "socSet": 1000,
         })
         print(f"P1={p1}W → outputLimit={limit}W, socSet=400 (discharging)")
     else:
